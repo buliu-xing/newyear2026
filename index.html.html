@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>新年福愿 - 翻转求福版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&family=Noto+Serif+SC:wght@300;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --poster-red: #8c1b1b;
+            --poster-beige: #f2eee1;
+            --ink: #1a1a1a;
+            --gold: #c5a059;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: var(--poster-red);
+            color: var(--poster-beige);
+            font-family: 'Noto Serif SC', serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 纸张微理质感 */
+        .paper-overlay {
+            position: fixed; inset: 0; pointer-events: none; opacity: 0.1; z-index: 10;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        .vertical-text { writing-mode: vertical-rl; text-orientation: mixed; }
+        .brush-font { font-family: 'Ma Shan Zheng', cursive; }
+
+        .poster-container {
+            display: flex; flex-direction: column; align-items: center;
+            width: 100%; height: 100%; padding: 5rem 0;
+            justify-content: space-between;
+        }
+
+        .header-info { text-align: center; letter-spacing: 0.5em; font-size: 0.55rem; opacity: 0.5; }
+
+        .interaction-block { position: relative; display: flex; flex-direction: column; align-items: center; }
+        
+        .enso-ring {
+            width: 240px; height: 240px; position: relative;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .enso-svg {
+            position: absolute; inset: 0; transform: rotate(-90deg);
+        }
+
+        .enso-path-bg { fill: none; stroke: var(--poster-beige); stroke-width: 0.5; opacity: 0.2; }
+        .enso-path-active { fill: none; stroke: var(--poster-beige); stroke-width: 2; stroke-dasharray: 800; stroke-dashoffset: 800; transition: stroke-dashoffset 0.1s linear; }
+
+        .center-seal {
+            width: 85px; height: 85px; border-radius: 50%;
+            border: 0.5px solid rgba(242, 238, 225, 0.2);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.6s cubic-bezier(0.2, 0, 0.2, 1); cursor: pointer;
+            background: rgba(0,0,0,0.05);
+            z-index: 20;
+        }
+
+        .holding .center-seal { transform: scale(0.85); background: rgba(242, 238, 225, 0.1); border-color: var(--poster-beige); }
+
+        /* --- 翻转卡片容器 --- */
+        .card-container {
+            position: absolute;
+            bottom: -900px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 240px;
+            height: 640px;
+            perspective: 1200px;
+            z-index: 100;
+            transition: bottom 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .card-container.active {
+            bottom: 50%;
+            transform: translate(-50%, 50%);
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            transform: rotateY(180deg);
+        }
+
+        .card-container.flipped .card-inner {
+            transform: rotateY(0deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        .card-front {
+            background: var(--poster-beige);
+            color: var(--ink);
+        }
+
+        .card-back {
+            background: var(--poster-red);
+            transform: rotateY(180deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-back-circle {
+            width: 120px;
+            height: 120px;
+            border: 1px solid rgba(242, 238, 225, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-top-accent { height: 8px; background: var(--poster-red); width: 100%; }
+        
+        .card-body {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            padding: 2.5rem 1rem; position: relative; border: 0.5px solid rgba(140, 27, 27, 0.1); margin: 6px;
+        }
+
+        /* 祝福语排版 */
+        .card-main-fortune {
+            font-size: 2.8rem; 
+            color: var(--ink); 
+            line-height: 1.1;
+            letter-spacing: 0.15em;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 改良后的红色圆圈福字图标 */
+        .red-seal {
+            width: 30px; height: 30px; 
+            background: #b22222; color: var(--poster-beige);
+            font-size: 0.75rem; font-weight: 900; 
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; /* 圆形 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card-footer-tag { font-size: 0.5rem; color: var(--poster-red); opacity: 0.6; margin-top: auto; letter-spacing: 0.4em; border-top: 1px solid rgba(140, 27, 27, 0.1); padding-top: 1.5rem; width: 60%; text-align: center; }
+
+        .btn-collect {
+            background: var(--poster-red); color: var(--poster-beige);
+            width: 100%; padding: 1.2rem 0; font-size: 0.65rem; letter-spacing: 1.2em;
+            text-indent: 1.2em; border: none; cursor: pointer;
+        }
+
+        .snow { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    </style>
+</head>
+<body>
+    <div class="paper-overlay"></div>
+    <div id="snow-container" class="snow"></div>
+
+    <!-- 引导页 -->
+    <div id="guide-ui" class="fixed inset-0 flex flex-col items-center justify-center bg-[var(--poster-red)] z-[200] transition-opacity duration-1000">
+        <h1 class="brush-font text-5xl tracking-[0.5em] mb-16">新年福愿</h1>
+        <button id="enter-btn" class="border border-beige/20 px-14 py-3 text-[0.65rem] tracking-[1em] hover:bg-beige hover:text-red-900 transition-all">
+            求 福
+        </button>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="poster-container">
+        <header class="header-info">
+            <div class="opacity-40">二 零 二 六</div>
+            <div class="mt-1 tracking-[0.2em] font-light">REVELATION</div>
+        </header>
+
+        <div class="interaction-block">
+            <h2 class="brush-font text-4xl tracking-[0.5em] vertical-text h-48 mb-20 opacity-90">
+                长 按 求 福
+            </h2>
+
+            <div id="interaction-area" class="enso-ring">
+                <svg class="enso-svg" viewBox="0 0 280 280">
+                    <path class="enso-path-bg" d="M140,20 C206,20 260,74 260,140 C260,206 206,260 140,260 C74,260 20,206 20,140 C20,74 74,20 140,20" />
+                    <path id="progress-path" class="enso-path-active" d="M140,20 C206,20 260,74 260,140 C260,206 206,260 140,260 C74,260 20,206 20,140 C20,74 74,20 140,20" />
+                </svg>
+                <div id="main-trigger" class="center-seal">
+                    <span class="brush-font text-5xl opacity-70">福</span>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer-info">
+            庚 子 岁 · 祈 瑞
+        </footer>
+    </div>
+
+    <!-- 翻转福签容器 -->
+    <div id="card-container" class="card-container">
+        <div class="card-inner">
+            <!-- 卡片背面 -->
+            <div class="card-face card-back">
+                <div class="card-back-circle">
+                    <span class="brush-font text-6xl opacity-80">福</span>
+                </div>
+            </div>
+
+            <!-- 卡片正面 -->
+            <div class="card-face card-front">
+                <div class="card-top-accent"></div>
+                <div class="card-body">
+                    <!-- 改良后的圆圈福字图标，现在居中对齐 -->
+                    <div class="red-seal mb-6">福</div>
+                    
+                    <div id="fortune-text" class="brush-font card-main-fortune vertical-text h-[30rem]">
+                        岁序更新万事如意
+                    </div>
+                    <div class="card-footer-tag">顺 遂 无 虞</div>
+                </div>
+                <button id="close-card" class="btn-collect">
+                    拂袖承愿
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fortunes = [
+            "岁序更新万事如意",
+            "山河无恙人间皆安",
+            "龙行龘龘前程似锦",
+            "平安喜乐万事胜意",
+            "祥云瑞气百福具臻",
+            "凛冬散尽星河长明",
+            "和气作春芳林新叶",
+            "万物起始春山可望",
+            "心之所向行之所往",
+            "长乐未央永受嘉福",
+            "瑞雪丰年万象更新",
+            "春禧如愿岁岁今朝",
+            "锦绣前程步步生莲",
+            "且以喜乐越过暖冬",
+            "得偿所愿岁岁平安",
+            "吉光片羽顺心而为"
+        ];
+
+        const mainTrigger = document.getElementById('main-trigger');
+        const progressPath = document.getElementById('progress-path');
+        const interactionArea = document.getElementById('interaction-area');
+        const cardContainer = document.getElementById('card-container');
+        const fortuneText = document.getElementById('fortune-text');
+        const closeBtn = document.getElementById('close-card');
+        const guideUI = document.getElementById('guide-ui');
+        const enterBtn = document.getElementById('enter-btn');
+
+        let holdTimer;
+        let progress = 0;
+        const totalDuration = 1500; 
+        const dashMax = 800;
+
+        function createSnow() {
+            const container = document.getElementById('snow-container');
+            for(let i=0; i<15; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'absolute bg-white rounded-full opacity-10';
+                const size = Math.random() * 2 + 1;
+                flake.style.width = size + 'px';
+                flake.style.height = size + 'px';
+                flake.style.left = Math.random() * 100 + 'vw';
+                flake.style.top = '-10px';
+                container.appendChild(flake);
+                
+                flake.animate([
+                    { transform: 'translateY(0)', opacity: 0.15 },
+                    { transform: `translateY(105vh) translateX(${(Math.random()-0.5)*50}px)`, opacity: 0 }
+                ], {
+                    duration: 6000 + Math.random() * 4000,
+                    iterations: Infinity,
+                    delay: Math.random() * 5000
+                });
+            }
+        }
+
+        function startHolding(e) {
+            e.preventDefault();
+            if (cardContainer.classList.contains('active')) return;
+            interactionArea.classList.add('holding');
+            progress = 0;
+            holdTimer = setInterval(() => {
+                progress += 20;
+                const ratio = Math.min(progress / totalDuration, 1);
+                progressPath.style.strokeDashoffset = dashMax - (dashMax * ratio);
+                if (progress >= totalDuration) {
+                    clearInterval(holdTimer);
+                    triggerFortune();
+                }
+            }, 20);
+        }
+
+        function stopHolding() {
+            clearInterval(holdTimer);
+            interactionArea.classList.remove('holding');
+            progressPath.style.strokeDashoffset = dashMax;
+        }
+
+        function triggerFortune() {
+            if (navigator.vibrate) navigator.vibrate(40);
+            
+            const flash = document.createElement('div');
+            flash.className = 'fixed inset-0 bg-white z-[1000] opacity-0 transition-opacity duration-700';
+            document.body.appendChild(flash);
+            setTimeout(() => flash.style.opacity = '1', 10);
+            
+            setTimeout(() => {
+                const f = fortunes[Math.floor(Math.random() * fortunes.length)];
+                fortuneText.innerText = f.replace(/\s+/g, '');
+                
+                cardContainer.classList.add('active');
+                setTimeout(() => {
+                    cardContainer.classList.add('flipped');
+                }, 400);
+
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 700);
+            }, 800);
+        }
+
+        enterBtn.addEventListener('click', () => {
+            guideUI.style.opacity = '0';
+            setTimeout(() => {
+                guideUI.style.display = 'none';
+                createSnow();
+            }, 1000);
+        });
+
+        mainTrigger.addEventListener('mousedown', startHolding);
+        mainTrigger.addEventListener('touchstart', startHolding, {passive: false});
+        window.addEventListener('mouseup', stopHolding);
+        window.addEventListener('touchend', stopHolding);
+
+        closeBtn.addEventListener('click', () => {
+            cardContainer.classList.remove('flipped');
+            setTimeout(() => {
+                cardContainer.classList.remove('active');
+                progressPath.style.strokeDashoffset = dashMax;
+            }, 400);
+        });
+    </script>
+</body>
+</html>
